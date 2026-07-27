@@ -11,6 +11,18 @@ import {
   loadCSS,
   buildBlock,
 } from './aem.js';
+import {
+  runExperimentation,
+  runExperimentationLazy,
+} from './experiment-loader.js';
+
+const experimentationConfig = {
+  prodHost: 'main--eds-training--victor-acostacnc.aem.live',
+  audiences: {
+    mobile: () => window.innerWidth < 600,
+    desktop: () => window.innerWidth >= 600,
+  },
+};
 
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
@@ -161,6 +173,7 @@ export function decorateMain(main) {
  */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  await runExperimentation(doc, experimentationConfig);
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
@@ -197,6 +210,8 @@ async function loadLazy(doc) {
 
   loadCSS(`${window.hlx.codeBasePath}/styles/lazy-styles.css`);
   loadFonts();
+
+  await runExperimentationLazy(doc, experimentationConfig);
 }
 
 /**
