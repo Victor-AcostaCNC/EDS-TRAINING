@@ -5,15 +5,36 @@
 
 .hero {
   position: relative;
-  padding: 40px 24px;
-  min-height: 300px;
+  padding: 56px 24px 48px;
+  text-align: center;
+  background-color: var(--background-color);
+  background-image: var(--paper-texture);
+  border-top: 6px double var(--dark-color);
+  border-bottom: 6px double var(--dark-color);
+}
+
+.hero::before {
+  content: '';
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 0 auto 24px;
+  border: 2px solid var(--dark-color);
+  transform: rotate(45deg);
 }
 
 .hero h1 {
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  color: var(--background-color);
+  max-width: 900px;
+  margin: 0 auto 12px;
+  color: var(--text-color);
+}
+
+.hero p {
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--dark-color);
+  font-size: var(--body-font-size-s);
+  font-style: italic;
 }
 
 .hero picture {
@@ -32,6 +53,6 @@
 
 @media (width >= 900px) {
   .hero {
-    padding: 40px 32px;
+    padding: 72px 32px 64px;
   }
 }
