@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Auto SEO</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f2e8d3;
+    --panel-bg: #fbf7ee;
+    --ink: #2b1d10;
+    --muted: #6b4a30;
+    --accent: #7a3319;
+    --border: #d8c9a3;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+
+  .subtitle {
+    margin: 0 0 16px;
+    color: var(--muted);
+    font-size: 11.5px;
+    word-break: break-all;
+  }
+
+  .state {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-bg);
+    color: var(--muted);
+  }
+
+  .state.error {
+    border-color: #b23b1a;
+    color: #b23b1a;
+  }
+
+  fieldset {
+    margin: 0 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px 12px;
+    background: var(--panel-bg);
+  }
+
+  legend {
+    padding: 0 6px;
+    font-weight: 600;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  input[type="text"],
+  textarea {
+    width: 100%;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font: inherit;
+    color: var(--ink);
+    background: #fff;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 60px;
+  }
+
+  .char-count {
+    margin: -4px 0 8px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .char-count.over {
+    color: #b23b1a;
+  }
+
+  button {
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    background: var(--accent);
+    color: #fff;
+    padding: 5px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  button.secondary {
+    background: transparent;
+    color: var(--accent);
+  }
+
+  button:hover {
+    opacity: 0.85;
+  }
+
+  .row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  #regenerate {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .hint {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Auto SEO</h1>
+<p class="subtitle" id="page-url">Leyendo la página actual…</p>
+
+<div id="status" class="state">Cargando contenido de la página…</div>
+
+<form id="results" hidden>
+  <fieldset>
+    <legend>Meta title</legend>
+    <input type="text" id="meta-title" maxlength="70">
+    <div class="char-count" id="meta-title-count"></div>
+    <div class="row">
+      <button type="button" class="secondary" data-copy="meta-title">Copiar</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Meta description</legend>
+    <textarea id="meta-description"></textarea>
+    <div class="char-count" id="meta-description-count"></div>
+    <div class="row">
+      <button type="button" class="secondary" data-copy="meta-description">Copiar</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>og:title</legend>
+    <input type="text" id="og-title">
+    <div class="row">
+      <button type="button" class="secondary" data-copy="og-title">Copiar</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>og:description</legend>
+    <textarea id="og-description"></textarea>
+    <div class="row">
+      <button type="button" class="secondary" data-copy="og-description">Copiar</button>
+    </div>
+  </fieldset>
+
+  <button type="button" id="regenerate">Regenerar desde la página</button>
+</form>
+
+<p class="hint">
+  Spike de prueba de concepto: los valores se generan con una heurística simple (ver
+  <code>auto-seo.js</code> más abajo en este archivo). Cópialos y pégalos tú mismo en la fila
+  correspondiente del bloque "Metadata" de tu documento — este panel no tiene forma de escribir
+  directamente en el documento fuente (ver comentario "NOTA" en el script).
+</p>
+
+<script>
+/**
+ * Auto SEO — Sidekick palette plugin (proof of concept).
+ *
+ * How this panel gets data:
+ * Sidekick was configured with "passReferrer": true in tools/sidekick/config.json, so it opens
+ * this file with a `?referrer=<url-of-the-tab-that-was-open>` query parameter. There is no
+ * postMessage channel between a palette and the host page in the current Sidekick architecture —
+ * this is the only bridge documented at https://www.aem.live/developer/sidekick-development.
+ * We simply `fetch()` that referrer URL (same as any visitor's browser would) and parse the
+ * returned HTML to read the page's own <h1> and paragraphs.
+ *
+ * NOTA sobre "insertar directo en la Metadata":
+ * No implementamos esto. El panel corre en un entorno de Preview (contenido ya publicado/
+ * previsualizado), no tiene acceso al documento fuente (Word/Google Docs) donde vive la tabla de
+ * Metadata real, y Sidekick no expone una API de escritura para paneles custom. Una implementación
+ * futura que sí escriba directamente tendría que llamar a la Document Authoring Admin API (por
+ * ejemplo vía el MCP "da-mcp" ya conectado a este proyecto) para actualizar el documento fuente,
+ * en lugar de intentar tocar el DOM de la página renderizada.
+ */
+
+const params = new URLSearchParams(window.location.search);
+const referrer = params.get('referrer');
+
+const statusEl = document.getElementById('status');
+const pageUrlEl = document.getElementById('page-url');
+const formEl = document.getElementById('results');
+
+const fields = {
+  'meta-title': document.getElementById('meta-title'),
+  'meta-description': document.getElementById('meta-description'),
+  'og-title': document.getElementById('og-title'),
+  'og-description': document.getElementById('og-description'),
+};
+
+function setStatus(message, isError) {
+  statusEl.textContent = message;
+  statusEl.classList.toggle('error', !!isError);
+  statusEl.hidden = false;
+  formEl.hidden = true;
+}
+
+function updateCharCount(id, limit) {
+  const el = document.getElementById(`${id}-count`);
+  if (!el) return;
+  const { length } = fields[id].value;
+  el.textContent = `${length}${limit ? ` / ${limit} caracteres recomendados` : ' caracteres'}`;
+  el.classList.toggle('over', !!limit && length > limit);
+}
+
+/**
+ * Generates SEO fields from a page's <main> content using a simple heuristic.
+ *
+ * TODO (future): replace the body of this function with a call to a real LLM. Since this is a
+ * static file with no backend, that call can't safely embed a provider API key here — it would
+ * need to go through a small serverless/edge function (or a project-side MCP tool) that this
+ * panel calls instead, passing it `title` and `firstParagraph` (or the full extracted text) and
+ * getting back better-written title/description/OG copy.
+ *
+ * @param {HTMLElement} main The <main> element of the fetched page
+ * @returns {{title: string, description: string}}
+ */
+function generateSeoHeuristic(main) {
+  const h1 = main.querySelector('h1');
+  const title = (h1 ? h1.textContent : document.title).trim();
+
+  // Skip very short paragraphs (e.g. hero taglines/eyebrows) to find real body copy.
+  const paragraphs = [...main.querySelectorAll('p')]
+    .map((p) => p.textContent.trim())
+    .filter((text) => text.length > 40);
+  const firstParagraph = paragraphs[0] || '';
+
+  // Spec for this spike: first 150 words of the first paragraph.
+  // Note for a production version: real meta descriptions read best around ~155 characters,
+  // not words — this heuristic intentionally follows the simpler spec for the proof of concept.
+  const description = firstParagraph.split(/\s+/).slice(0, 150).join(' ');
+
+  return { title, description };
+}
+
+async function loadAndGenerate() {
+  if (!referrer) {
+    setStatus('No se recibió la URL de la página (falta el parámetro "referrer"). Abre este panel desde el botón de Sidekick en una página de Preview.', true);
+    return;
+  }
+
+  pageUrlEl.textContent = referrer;
+  setStatus('Leyendo el contenido de la página…');
+
+  let main;
+  try {
+    const res = await fetch(referrer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    main = doc.querySelector('main');
+    if (!main) throw new Error('La página no tiene un elemento <main>');
+  } catch (err) {
+    setStatus(`No se pudo leer la página: ${err.message}`, true);
+    return;
+  }
+
+  const { title, description } = generateSeoHeuristic(main);
+  if (!title && !description) {
+    setStatus('No se encontró un <h1> ni párrafos de contenido en la página.', true);
+    return;
+  }
+
+  fields['meta-title'].value = title;
+  fields['meta-description'].value = description;
+  fields['og-title'].value = title;
+  fields['og-description'].value = description;
+
+  updateCharCount('meta-title', 60);
+  updateCharCount('meta-description', 155);
+
+  statusEl.hidden = true;
+  formEl.hidden = false;
+}
+
+document.querySelectorAll('[data-copy]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const field = fields[button.dataset.copy];
+    try {
+      await navigator.clipboard.writeText(field.value);
+      const original = button.textContent;
+      button.textContent = 'Copiado';
+      setTimeout(() => { button.textContent = original; }, 1200);
+    } catch {
+      field.select();
+      document.execCommand('copy');
+    }
+  });
+});
+
+document.getElementById('regenerate').addEventListener('click', loadAndGenerate);
+
+loadAndGenerate();
+</script>
+
+</body>
+</html>
