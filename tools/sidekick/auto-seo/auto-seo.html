@@ -196,11 +196,15 @@
  *
  * How this panel gets data:
  * Sidekick was configured with "passReferrer": true in tools/sidekick/config.json, so it opens
- * this file with a `?referrer=<url-of-the-tab-that-was-open>` query parameter. There is no
- * postMessage channel between a palette and the host page in the current Sidekick architecture —
- * this is the only bridge documented at https://www.aem.live/developer/sidekick-development.
- * We simply `fetch()` that referrer URL (same as any visitor's browser would) and parse the
- * returned HTML to read the page's own <h1> and paragraphs.
+ * this file with a `?referrer=<url-of-the-tab-that-was-open>` query parameter.
+ *
+ * Sidekick renders palettes in a sandboxed iframe with an opaque ("null") origin, so a direct
+ * `fetch(referrer)` from here gets blocked by the browser's CORS check regardless of what headers
+ * the target server sends (confirmed while building this: the local dev server already replies
+ * with `Access-Control-Allow-Origin: *`, and Chrome still blocks it because the requester's
+ * origin is "null"). Instead, we embed the referrer page in our own hidden <iframe> — that's just
+ * navigation, not subject to CORS — and talk to it over postMessage, which works regardless of
+ * origin opacity. The page side of this handshake lives in scripts/scripts.js.
  *
  * NOTA sobre "insertar directo en la Metadata":
  * No implementamos esto. El panel corre en un entorno de Preview (contenido ya publicado/
@@ -241,26 +245,23 @@ function updateCharCount(id, limit) {
 }
 
 /**
- * Generates SEO fields from a page's <main> content using a simple heuristic.
+ * Generates SEO fields from a page's extracted h1/paragraphs using a simple heuristic.
  *
  * TODO (future): replace the body of this function with a call to a real LLM. Since this is a
  * static file with no backend, that call can't safely embed a provider API key here — it would
  * need to go through a small serverless/edge function (or a project-side MCP tool) that this
- * panel calls instead, passing it `title` and `firstParagraph` (or the full extracted text) and
+ * panel calls instead, passing it `h1` and `firstParagraph` (or the full extracted text) and
  * getting back better-written title/description/OG copy.
  *
- * @param {HTMLElement} main The <main> element of the fetched page
+ * @param {string} h1 The page's <h1> text (or a fallback title)
+ * @param {string[]} paragraphs The page's <p> texts, in document order
  * @returns {{title: string, description: string}}
  */
-function generateSeoHeuristic(main) {
-  const h1 = main.querySelector('h1');
-  const title = (h1 ? h1.textContent : document.title).trim();
+function generateSeoHeuristic(h1, paragraphs) {
+  const title = h1.trim();
 
   // Skip very short paragraphs (e.g. hero taglines/eyebrows) to find real body copy.
-  const paragraphs = [...main.querySelectorAll('p')]
-    .map((p) => p.textContent.trim())
-    .filter((text) => text.length > 40);
-  const firstParagraph = paragraphs[0] || '';
+  const firstParagraph = paragraphs.map((p) => p.trim()).find((text) => text.length > 40) || '';
 
   // Spec for this spike: first 150 words of the first paragraph.
   // Note for a production version: real meta descriptions read best around ~155 characters,
@@ -268,6 +269,48 @@ function generateSeoHeuristic(main) {
   const description = firstParagraph.split(/\s+/).slice(0, 150).join(' ');
 
   return { title, description };
+}
+
+/**
+ * Asks the given page (loaded in our own hidden iframe) for its h1/paragraphs over postMessage.
+ * See the top-of-file comment for why this iframe+postMessage dance replaces a plain fetch().
+ * @param {string} pageUrl The page URL to read (the Sidekick `referrer`)
+ * @returns {Promise<{h1: string, paragraphs: string[]}>}
+ */
+function extractViaHiddenIframe(pageUrl) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+
+    const cleanup = () => {
+      window.removeEventListener('message', onMessage);
+      clearTimeout(timeoutId);
+      iframe.remove();
+    };
+
+    const onMessage = (event) => {
+      if (event.source !== iframe.contentWindow || event.data?.type !== 'auto-seo:extract-response') return;
+      cleanup();
+      resolve({ h1: event.data.h1, paragraphs: event.data.paragraphs });
+    };
+
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('la página no respondió a tiempo (¿scripts.js no está cargado ahí?)'));
+    }, 8000);
+
+    window.addEventListener('message', onMessage);
+    iframe.addEventListener('load', () => {
+      iframe.contentWindow.postMessage({ type: 'auto-seo:extract-request' }, '*');
+    });
+    iframe.addEventListener('error', () => {
+      cleanup();
+      reject(new Error('no se pudo cargar la página en un iframe'));
+    });
+
+    iframe.src = pageUrl;
+    document.body.append(iframe);
+  });
 }
 
 async function loadAndGenerate() {
@@ -279,20 +322,16 @@ async function loadAndGenerate() {
   pageUrlEl.textContent = referrer;
   setStatus('Leyendo el contenido de la página…');
 
-  let main;
+  let h1;
+  let paragraphs;
   try {
-    const res = await fetch(referrer);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const html = await res.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    main = doc.querySelector('main');
-    if (!main) throw new Error('La página no tiene un elemento <main>');
+    ({ h1, paragraphs } = await extractViaHiddenIframe(referrer));
   } catch (err) {
     setStatus(`No se pudo leer la página: ${err.message}`, true);
     return;
   }
 
-  const { title, description } = generateSeoHeuristic(main);
+  const { title, description } = generateSeoHeuristic(h1, paragraphs);
   if (!title && !description) {
     setStatus('No se encontró un <h1> ni párrafos de contenido en la página.', true);
     return;

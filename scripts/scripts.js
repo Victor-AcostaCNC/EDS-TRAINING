@@ -24,6 +24,22 @@ const experimentationConfig = {
   },
 };
 
+/**
+ * Support for the "Auto SEO" Sidekick palette (tools/sidekick/auto-seo/auto-seo.html).
+ * That panel runs in a sandboxed iframe with an opaque ("null") origin, so it can't use
+ * CORS-gated fetch() against this page. Instead it embeds this page in its own hidden iframe
+ * and asks over postMessage — which works regardless of origin opacity. The reply uses '*' as
+ * the target origin because the requester's origin is always "null" here; the payload is just
+ * page copy, not sensitive data.
+ */
+window.addEventListener('message', (event) => {
+  if (event.data?.type !== 'auto-seo:extract-request') return;
+  const main = document.querySelector('main');
+  const h1 = (main?.querySelector('h1')?.textContent || document.title || '').trim();
+  const paragraphs = [...(main?.querySelectorAll('p') || [])].map((p) => p.textContent.trim());
+  event.source.postMessage({ type: 'auto-seo:extract-response', h1, paragraphs }, '*');
+});
+
 if (window.trustedTypes && window.trustedTypes.createPolicy) {
   const innerTT = window.trustedTypes.createPolicy('tt-inner', {
     createHTML: (s) => s, // avoid stack overflow
