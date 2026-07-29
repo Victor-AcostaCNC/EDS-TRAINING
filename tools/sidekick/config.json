@@ -12,6 +12,21 @@
         "**.docx**"
       ],
       "event": "aem-experimentation-sidekick"
+    },
+    {
+      "id": "auto-seo",
+      "title": "Auto SEO",
+      "titleI18n": {
+        "en": "Auto SEO"
+      },
+      "url": "/tools/sidekick/auto-seo/auto-seo.html",
+      "isPalette": true,
+      "paletteRect": "top:80px;left:8%;width:440px;height:640px;",
+      "passReferrer": true,
+      "environments": [
+        "dev",
+        "preview"
+      ]
     }
   ]
 }
