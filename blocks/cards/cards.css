@@ -8,12 +8,34 @@
 }
 
 .cards > ul > li {
-  border: 1px solid #dadada;
-  background-color: var(--background-color);
+  border: 1px solid var(--dark-color);
+  background-color: var(--light-color);
+  box-shadow: 3px 3px 0 var(--dark-color);
 }
 
 .cards .cards-card-body {
   margin: 16px;
+}
+
+.cards .cards-card-body h3 {
+  margin-top: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--dark-color);
+  font-size: var(--heading-font-size-s);
+}
+
+.cards .cards-card-body h3 span {
+  display: block;
+  margin-top: 4px;
+  color: var(--dark-color);
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-xs);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.cards .cards-card-body p:last-child {
+  margin-bottom: 0;
 }
 
 .cards .cards-card-image {

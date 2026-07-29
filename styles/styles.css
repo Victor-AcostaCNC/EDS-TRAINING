@@ -11,17 +11,20 @@
  */
 
 :root {
-  /* colors */
-  --background-color: white;
-  --light-color: #f8f8f8;
-  --dark-color: #505050;
-  --text-color: #131313;
-  --link-color: #3b63fb;
-  --link-hover-color: #1d3ecf;
+  /* colors - sepia / old-press palette */
+  --background-color: #f2e8d3;
+  --light-color: #e8dbb9;
+  --dark-color: #6b4a30;
+  --text-color: #2b1d10;
+  --link-color: #7a3319;
+  --link-hover-color: #52220f;
 
   /* fonts */
-  --body-font-family: roboto, roboto-fallback, sans-serif;
-  --heading-font-family: roboto-condensed, roboto-condensed-fallback, sans-serif;
+  --body-font-family: georgia, 'times new roman', serif;
+  --heading-font-family: playfair-display, georgia, 'times new roman', serif;
+
+  /* decorative paper grain, used as a subtle background texture */
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
 
   /* body sizes */
   --body-font-size-m: 22px;
@@ -74,6 +77,7 @@ body {
   display: none;
   margin: 0;
   background-color: var(--background-color);
+  background-image: var(--paper-texture);
   color: var(--text-color);
   font-family: var(--body-font-family);
   font-size: var(--body-font-size-m);
@@ -107,8 +111,9 @@ h6 {
   margin-top: 0.8em;
   margin-bottom: 0.25em;
   font-family: var(--heading-font-family);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.25;
+  letter-spacing: 0.01em;
   scroll-margin: 40px;
 }
 
@@ -310,6 +315,26 @@ main > .section:first-of-type {
   margin-top: 0;
 }
 
+/* engraved-style section divider: a double rule with a small diamond ornament */
+main > .section:not(:first-of-type) {
+  position: relative;
+  margin-top: 56px;
+  padding-top: 40px;
+  border-top: 3px double var(--dark-color);
+}
+
+main > .section:not(:first-of-type)::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background-color: var(--background-color);
+  border: 2px solid var(--dark-color);
+  transform: translateX(-50%) rotate(45deg);
+}
+
 @media (width >= 900px) {
   main > .section > div {
     padding: 0 32px;
@@ -322,4 +347,44 @@ main .section.highlight {
   background-color: var(--light-color);
   margin: 0;
   padding: 40px 0;
+}
+
+/* vintage ornaments: drop cap and quotation styling */
+main .default-content-wrapper > p:first-of-type::first-letter {
+  float: left;
+  margin: 0.05em 8px 0 0;
+  font-family: var(--heading-font-family);
+  font-size: 3.2em;
+  font-weight: 700;
+  line-height: 0.8;
+  color: var(--dark-color);
+}
+
+blockquote {
+  max-width: 640px;
+  margin: 32px auto;
+  padding: 8px 48px;
+  font-family: var(--heading-font-family);
+  font-size: var(--heading-font-size-s);
+  font-style: italic;
+  color: var(--dark-color);
+  text-align: center;
+}
+
+blockquote::before {
+  content: '\201C';
+  display: block;
+  margin-bottom: 8px;
+  color: var(--link-color);
+  font-family: var(--heading-font-family);
+  font-size: 3em;
+  line-height: 0.5;
+}
+
+blockquote p:last-child {
+  margin-top: 16px;
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-xs);
+  font-style: normal;
+  color: var(--text-color);
 }
